@@ -41,7 +41,10 @@ func parseJs() error {
 			return err
 		}
 		questions := scanBody(body)
-		saveQuestions(resource.language, questions)
+		err = saveQuestions(resource.language, questions)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
