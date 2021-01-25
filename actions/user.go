@@ -27,6 +27,11 @@ func (ua UserActions) SendEmailToken(email string) error {
 	return nil
 }
 
+// GenerateToken generates a token based on user ID
+func (ua UserActions) GenerateToken(ID int) (string, error) {
+	return "", nil
+}
+
 // ExistsEmail check if exists an account with the email provided
 func (ua UserActions) ExistsEmail(email string) bool {
 	return false

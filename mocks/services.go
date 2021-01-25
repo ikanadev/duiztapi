@@ -6,6 +6,7 @@ import "github.com/vmkevv/duiztapi/ent"
 type UserActions interface {
 	Register(name, email string) (*ent.User, error)
 	SendEmailToken(email string) error
+	GenerateToken(ID int) (string, error)
 	ExistsEmail(email string) bool
 	Login(token string) (*ent.User, error)
 }

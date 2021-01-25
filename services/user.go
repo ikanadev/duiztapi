@@ -1,13 +1,10 @@
 package services
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
-	"github.com/vmkevv/duiztapi/actions"
-	"github.com/vmkevv/duiztapi/ent"
 	"github.com/vmkevv/duiztapi/mocks"
 	"github.com/vmkevv/duiztapi/serverr"
 )
@@ -19,47 +16,69 @@ type UserServices struct {
 }
 
 // SetupUserServices create a new instace of UserServices
-func SetupUserServices(ctx context.Context, client *ent.Client, validator *validator.Validate) UserServices {
+func SetupUserServices(actions mocks.UserActions, validator *validator.Validate) UserServices {
 	return UserServices{
-		actions:   actions.SetupUserActions(ctx, client),
+		actions:   actions,
 		validator: validator,
 	}
 }
 
 // ServeRoutes serve the routes defined
-func ServeRoutes(app fiber.Router) {}
+func (us UserServices) ServeRoutes(app fiber.Router) {
+	app.Post("/user", us.register())
+	app.Post("/login", us.sendEmail())
+}
 
 func (us UserServices) register() fiber.Handler {
-	type response struct {
-		User  ent.User `json:"user"`
-		Token string   `json:"token"`
-	}
 	return func(c *fiber.Ctx) error {
-		reqData := struct {
-			Name  string `json:"name" validate:"required,gte=2"`
-			Email string `json:"email" validate:"required,email"`
-		}{}
+		reqData := RegisterReq{}
 		if err := c.BodyParser(&reqData); err != nil {
 			return serverr.New(fiber.StatusInternalServerError, "Can't read name and email from body")
 		}
 
 		err := us.validator.Struct(reqData)
 		if err != nil {
-			for _, err := range err.(validator.ValidationErrors) {
-				fmt.Println(err.Namespace())
-				fmt.Println(err.Field())
-				fmt.Println(err.StructNamespace())
-				fmt.Println(err.StructField())
-				fmt.Println(err.Tag())
-				fmt.Println(err.ActualTag())
-				fmt.Println(err.Kind())
-				fmt.Println(err.Type())
-				fmt.Println(err.Value())
-				fmt.Println(err.Param())
-				fmt.Println()
-			}
-			return err
+			return serverr.New(fiber.StatusBadRequest, "name must be at least 2 characters lenght and you need to type a valid email")
 		}
-		return nil
+
+		if us.actions.ExistsEmail(reqData.Email) {
+			return serverr.New(fiber.StatusBadRequest, "There is already an account with this email.")
+		}
+
+		savedUser, err := us.actions.Register(reqData.Name, reqData.Email)
+		if err != nil {
+			return serverr.New(fiber.StatusInternalServerError, fmt.Sprintf("There was a problem saving user: %v", err))
+		}
+
+		tokenStr, err := us.actions.GenerateToken(savedUser.ID)
+		if err != nil {
+			return serverr.New(fiber.StatusInternalServerError, fmt.Sprintf("Error generating token: %v", err))
+		}
+
+		return c.JSON(RegisterRes{
+			User:  *savedUser,
+			Token: tokenStr,
+		})
+	}
+}
+func (us UserServices) sendEmail() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		reqData := SendEmailReq{}
+		if err := c.BodyParser(&reqData); err != nil {
+			return serverr.New(fiber.StatusInternalServerError, "Can't read email from body")
+		}
+
+		if !us.actions.ExistsEmail(reqData.Email) {
+			return serverr.New(fiber.StatusBadRequest, "The provided email does not exists in database")
+		}
+
+		err := us.actions.SendEmailToken(reqData.Email)
+		if err != nil {
+			return serverr.New(fiber.StatusInternalServerError, "Error while sending email")
+		}
+
+		return c.JSON(SendEmailRes{
+			Message: "Magic link have been send to email address",
+		})
 	}
 }
