@@ -18,6 +18,14 @@ func New(code int, message string) ServErr {
 	return ServErr{code, message}
 }
 
+// New500 creates a new ServErr with 500 Internal server error code
+func New500(message string) ServErr {
+	return ServErr{
+		fiber.StatusInternalServerError,
+		message,
+	}
+}
+
 // Handler custom error handler for fiber
 func Handler(c *fiber.Ctx, e error) error {
 	servErr, ok := e.(ServErr)
