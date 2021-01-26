@@ -1,6 +1,10 @@
 package serverr
 
-import "github.com/gofiber/fiber/v2"
+import (
+	"fmt"
+
+	"github.com/gofiber/fiber/v2"
+)
 
 // ServErr represents a server error
 type ServErr struct {
@@ -19,10 +23,16 @@ func New(code int, message string) ServErr {
 }
 
 // New500 creates a new ServErr with 500 Internal server error code
-func New500(message string) ServErr {
+func New500(message string, err ...error) ServErr {
+	if len(err) == 0 {
+		return ServErr{
+			Code:    fiber.StatusInternalServerError,
+			Message: message,
+		}
+	}
 	return ServErr{
 		fiber.StatusInternalServerError,
-		message,
+		fmt.Sprintf("%s\nError %v", message, err[0]),
 	}
 }
 

@@ -3,6 +3,7 @@ package services_test
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"testing"
@@ -43,7 +44,12 @@ func (u userActions) ExistsEmail(email string) bool {
 	return false
 }
 func (u userActions) Login(token string) (*ent.User, error) {
-	return nil, nil
+	for _, u := range u.users {
+		if u.Email == token {
+			return u, nil
+		}
+	}
+	return nil, errors.New("error when login")
 }
 
 func TestRegisterService(t *testing.T) {
@@ -129,7 +135,7 @@ func TestSendEmail(t *testing.T) {
 		reqStr, _ := json.Marshal(services.SendEmailReq{
 			Email: "kevv@gmail.com",
 		})
-		req, _ := http.NewRequest("POST", "/api/v1/login", bytes.NewReader(reqStr))
+		req, _ := http.NewRequest("POST", "/api/v1/email", bytes.NewReader(reqStr))
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, _ := app.Test(req)
@@ -149,11 +155,39 @@ func TestSendEmail(t *testing.T) {
 	t.Run("It should return 400 error for unknown email", func(t *testing.T) {
 		reqStr, _ := json.Marshal(services.SendEmailReq{"unknown@gmail.com"})
 
-		req, _ := http.NewRequest("POST", "/api/v1/login", bytes.NewReader(reqStr))
+		req, _ := http.NewRequest("POST", "/api/v1/email", bytes.NewReader(reqStr))
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, _ := app.Test(req)
 
 		assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "reponse status code should be a 400 error")
 	})
+}
+
+func TestLogin(t *testing.T) {
+	app := fiber.New(fiber.Config{
+		ErrorHandler: serverr.Handler,
+	})
+	appV1 := app.Group("/api/v1")
+	userActionsMock := &userActions{}
+	userActionsMock.Register("Kevv", "kevv@gmail.com")
+	validator := validator.New()
+	services.SetupUserServices(userActionsMock, validator).ServeRoutes(appV1)
+
+	t.Run("It should verify a correct token string", func(t *testing.T) {
+		reqStr, _ := json.Marshal(services.LoginReq{"kevv@gmail.com"})
+
+		req, _ := http.NewRequest("POST", "/api/v1/login", bytes.NewReader(reqStr))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, _ := app.Test(req)
+
+		assert.Equal(t, http.StatusOK, resp.StatusCode, "response code should be 200")
+		body, err := ioutil.ReadAll(resp.Body)
+		assert.Nil(t, err, "No errors expected by reading response body")
+		respData := services.LoginRes{}
+		err = json.Unmarshal(body, &respData)
+		assert.Nil(t, err, "No errors expected by unmarshalling response")
+	})
+
 }

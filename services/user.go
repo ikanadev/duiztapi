@@ -1,8 +1,6 @@
 package services
 
 import (
-	"fmt"
-
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/vmkevv/duiztapi/mocks"
@@ -26,14 +24,14 @@ func SetupUserServices(actions mocks.UserActions, validator *validator.Validate)
 // ServeRoutes serve the routes defined
 func (us UserServices) ServeRoutes(app fiber.Router) {
 	app.Post("/user", us.register())
-	app.Post("/login", us.sendEmail())
+	app.Post("/email", us.sendEmail())
 }
 
 func (us UserServices) register() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		reqData := RegisterReq{}
 		if err := c.BodyParser(&reqData); err != nil {
-			return serverr.New(fiber.StatusInternalServerError, "Can't read name and email from body")
+			return serverr.New500("Can't read name and email from body", err)
 		}
 
 		err := us.validator.Struct(reqData)
@@ -47,12 +45,12 @@ func (us UserServices) register() fiber.Handler {
 
 		savedUser, err := us.actions.Register(reqData.Name, reqData.Email)
 		if err != nil {
-			return serverr.New(fiber.StatusInternalServerError, fmt.Sprintf("There was a problem saving user: %v", err))
+			return serverr.New500("There was a problem saving user", err)
 		}
 
 		tokenStr, err := us.actions.GenerateToken(savedUser.ID)
 		if err != nil {
-			return serverr.New(fiber.StatusInternalServerError, fmt.Sprintf("Error generating token: %v", err))
+			return serverr.New500("Error generating token", err)
 		}
 
 		return c.JSON(RegisterRes{
@@ -61,11 +59,12 @@ func (us UserServices) register() fiber.Handler {
 		})
 	}
 }
+
 func (us UserServices) sendEmail() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		reqData := SendEmailReq{}
 		if err := c.BodyParser(&reqData); err != nil {
-			return serverr.New(fiber.StatusInternalServerError, "Can't read email from body")
+			return serverr.New500("Can't read email from body", err)
 		}
 
 		if !us.actions.ExistsEmail(reqData.Email) {
@@ -74,7 +73,7 @@ func (us UserServices) sendEmail() fiber.Handler {
 
 		err := us.actions.SendEmailToken(reqData.Email)
 		if err != nil {
-			return serverr.New(fiber.StatusInternalServerError, "Error while sending email")
+			return serverr.New500("Error while sending email", err)
 		}
 
 		return c.JSON(SendEmailRes{

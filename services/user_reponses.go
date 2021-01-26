@@ -23,3 +23,14 @@ type SendEmailRes struct {
 type SendEmailReq struct {
 	Email string `json:"email" validate:"required,email"`
 }
+
+// LoginReq email token to verify a user account
+type LoginReq struct {
+	Token string `json:"token"`
+}
+
+// LoginRes data to return to user logged
+type LoginRes struct {
+	User  *ent.User `json:"user"`
+	Token string    `json:"token"`
+}
