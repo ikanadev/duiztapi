@@ -41,3 +41,8 @@ func (ua UserActions) ExistsEmail(email string) bool {
 func (ua UserActions) Login(token string) (*ent.User, error) {
 	return nil, nil
 }
+
+// CheckToken verifies if a token is valid
+func (ua UserActions) CheckEmailToken(token string) error {
+	return nil
+}

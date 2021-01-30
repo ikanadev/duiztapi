@@ -4,8 +4,8 @@ import "github.com/vmkevv/duiztapi/ent"
 
 // RegisterRes register response data
 type RegisterRes struct {
-	User  ent.User `json:"user"`
-	Token string   `json:"token"`
+	User  *ent.User `json:"user"`
+	Token string    `json:"token"`
 }
 
 // RegisterReq register request data

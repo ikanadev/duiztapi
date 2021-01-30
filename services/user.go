@@ -25,6 +25,7 @@ func SetupUserServices(actions mocks.UserActions, validator *validator.Validate)
 func (us UserServices) ServeRoutes(app fiber.Router) {
 	app.Post("/user", us.register())
 	app.Post("/email", us.sendEmail())
+	app.Post("/authentication", us.authenticate())
 }
 
 func (us UserServices) register() fiber.Handler {
@@ -54,7 +55,7 @@ func (us UserServices) register() fiber.Handler {
 		}
 
 		return c.JSON(RegisterRes{
-			User:  *savedUser,
+			User:  savedUser,
 			Token: tokenStr,
 		})
 	}
@@ -78,6 +79,35 @@ func (us UserServices) sendEmail() fiber.Handler {
 
 		return c.JSON(SendEmailRes{
 			Message: "Magic link have been send to email address",
+		})
+	}
+}
+
+func (us UserServices) authenticate() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		reqData := LoginReq{}
+		if err := c.BodyParser(&reqData); err != nil {
+			return serverr.New500("Can't parse body data", err)
+		}
+
+		err := us.actions.CheckEmailToken(reqData.Token)
+		if err != nil {
+			return serverr.New(fiber.StatusUnauthorized, "Invalid or expired token")
+		}
+
+		user, err := us.actions.Login(reqData.Token)
+		if err != nil {
+			return serverr.New500("Invalid token", err)
+		}
+
+		tokenStr, err := us.actions.GenerateToken(user.ID)
+		if err != nil {
+			return serverr.New500("Can't generate token", err)
+		}
+
+		return c.JSON(LoginRes{
+			User:  user,
+			Token: tokenStr,
 		})
 	}
 }

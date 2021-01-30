@@ -51,6 +51,12 @@ func (u userActions) Login(token string) (*ent.User, error) {
 	}
 	return nil, errors.New("error when login")
 }
+func (u userActions) CheckEmailToken(token string) error {
+	if token == "expired" {
+		return errors.New("Expired token")
+	}
+	return nil
+}
 
 func TestRegisterService(t *testing.T) {
 	app := fiber.New(fiber.Config{
@@ -177,7 +183,7 @@ func TestLogin(t *testing.T) {
 	t.Run("It should verify a correct token string", func(t *testing.T) {
 		reqStr, _ := json.Marshal(services.LoginReq{"kevv@gmail.com"})
 
-		req, _ := http.NewRequest("POST", "/api/v1/login", bytes.NewReader(reqStr))
+		req, _ := http.NewRequest("POST", "/api/v1/authentication", bytes.NewReader(reqStr))
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, _ := app.Test(req)
@@ -189,5 +195,14 @@ func TestLogin(t *testing.T) {
 		err = json.Unmarshal(body, &respData)
 		assert.Nil(t, err, "No errors expected by unmarshalling response")
 	})
+	t.Run("It should return 401 on expired token", func(t *testing.T) {
+		reqStr, _ := json.Marshal(services.LoginReq{"expired"})
 
+		req, _ := http.NewRequest("POST", "/api/v1/authentication", bytes.NewReader(reqStr))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, _ := app.Test(req)
+
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	})
 }

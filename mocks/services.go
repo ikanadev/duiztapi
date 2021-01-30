@@ -8,5 +8,6 @@ type UserActions interface {
 	SendEmailToken(email string) error
 	GenerateToken(ID int) (string, error)
 	ExistsEmail(email string) bool
+	CheckEmailToken(token string) error
 	Login(token string) (*ent.User, error)
 }
